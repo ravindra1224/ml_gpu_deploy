@@ -1,0 +1,26 @@
+from fastapi import FastAPI
+from pydantic import BaseModel
+import torch
+from model import MyModel
+
+# Check GPU
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Load model
+model = MyModel()
+model.load_state_dict(torch.load("model/model.pth", map_location=device))
+model.to(device)
+model.eval()
+
+# FastAPI setup
+app = FastAPI()
+
+class InputData(BaseModel):
+    features: list  # List of floats
+
+@app.post("/predict")
+def predict(data: InputData):
+    x = torch.tensor([data.features], dtype=torch.float32).to(device)
+    with torch.no_grad():
+        y = model(x)
+    return {"prediction": y.cpu().numpy().tolist()}
